@@ -1,3 +1,4 @@
+from crypt import methods
 import os
 
 from flask import Flask, render_template, request, flash, redirect, session, g
@@ -286,8 +287,21 @@ def add_like(message_id):
     return redirect("/")
 
 
+@app.route('/users/<int:user_id>/likes', methods=["GET", "POST"])
+def show_likes(user_id):
+    """Show list of posts this user likes."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = g.user
+    likes = g.user.likes
+    return render_template('users/likes.html', likes=likes, user=user)
+
 ##############################################################################
 # Messages routes:
+
 
 @app.route('/messages/new', methods=["GET", "POST"])
 def messages_add():
