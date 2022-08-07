@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
+from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -30,6 +30,7 @@ connect_db(app)
 
 
 @app.before_request
+# g stands for "global" and is an object in Flask. Only valid in the context and disappear when the context end. Do not store data you need acros requests (in thsi case, use session)
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
 
@@ -113,8 +114,13 @@ def login():
 def logout():
     """Handle logout of user."""
 
-    # IMPLEMENT THIS
+    user = User.query.get_or_404(session[CURR_USER_KEY])
+    # can also use g
+    #user = g.user
     flash(f"See you later, {user.username}!")
+
+    do_logout()
+
     return redirect("/login")
 
 
@@ -213,7 +219,31 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
 
-    # IMPLEMENT THIS
+    if not g.user:
+        flash("You are not allowed here", "danger")
+        return redirect("/")
+
+    # get the current user in the context
+    user = g.user
+    # other way
+    #user = User.query.get_or_404(session[CURR_USER_KEY])
+
+    form = UserEditForm(obj=user)
+
+    if form.validate_on_submit():
+        if User.authenticate(user.username, form.password.data):
+            user.username = form.username.data
+            user.email = form.email.data
+            user.image_url = form.image_url.data or "/static/images/default-pic.png"
+            user.header_image_url = form.header_image_url.data or "/static/images/warbler-hero.jpg"
+            user.bio = form.bio.data
+
+            db.session.commit()
+            return redirect(f"/users/{user.id}")
+
+        flash("Seems like you got the password wrong! Try again!", 'danger')
+
+    return render_template('users/edit.html', form=form, user_id=user.id)
 
 
 @app.route('/users/delete', methods=["POST"])
@@ -294,11 +324,10 @@ def homepage():
     """
 
     if g.user:
-        messages = (Message
-                    .query
-                    .order_by(Message.timestamp.desc())
-                    .limit(100)
-                    .all())
+
+        following = [g.user.id]+[f.id for f in g.user.following]
+        messages = (Message.query.filter(Message.user_id.in_(following)).order_by(
+            Message.timestamp.desc()).limit(100).all())
 
         return render_template('home.html', messages=messages)
 
