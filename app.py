@@ -30,7 +30,9 @@ connect_db(app)
 
 
 @app.before_request
-# g stands for "global" and is an object in Flask. Only valid in the context and disappear when the context end. Do not store data you need acros requests (in thsi case, use session)
+# the function add_user_to_g is executed before every function
+# g stands for "global" and is an global namespace object in Flask. Only valid in the context and disappear when the context end.  Do not store data you need across requests (in this case, use session)
+# A new request will end the context. This is why the following function needs to be done before each request and access the session to get the current user.
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
 
@@ -223,10 +225,8 @@ def profile():
         flash("You are not allowed here", "danger")
         return redirect("/")
 
-    # get the current user in the context
+    # get the current user using g.
     user = g.user
-    # other way
-    #user = User.query.get_or_404(session[CURR_USER_KEY])
 
     form = UserEditForm(obj=user)
 
@@ -260,6 +260,30 @@ def delete_user():
     db.session.commit()
 
     return redirect("/signup")
+
+
+@app.route('/users/add_like/<int:message_id>', methods=['POST'])
+def add_like(message_id):
+    """Toggle a liked message for the currently-logged-in user."""
+
+    if not g.user:
+        flash("You need to login", "danger")
+        return redirect("/")
+
+    message = Message.query.get_or_404(message_id)
+    if message.user_id == g.user.id:
+        return os.abort(403)
+
+    user_likes = g.user.likes
+
+    if message in user_likes:
+        g.user.likes = [like for like in user_likes if like != message]
+    else:
+        g.user.likes.append(message)
+
+    db.session.commit()
+
+    return redirect("/")
 
 
 ##############################################################################
