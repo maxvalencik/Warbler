@@ -114,6 +114,8 @@ def logout():
     """Handle logout of user."""
 
     # IMPLEMENT THIS
+    flash(f"See you later, {user.username}!")
+    return redirect("/login")
 
 
 ##############################################################################
