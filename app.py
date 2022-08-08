@@ -389,3 +389,12 @@ def add_header(req):
     req.headers["Expires"] = "0"
     req.headers['Cache-Control'] = 'public, max-age=0'
     return req
+
+
+####################################
+# 404 Route
+@app.errorhandler(404)
+def custom_404(e):
+    """Show customized 404 page"""
+
+    return render_template("404.html"), 404
